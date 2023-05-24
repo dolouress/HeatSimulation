@@ -3,32 +3,15 @@ package com.example.demo4;
 import javafx.scene.paint.Color;
 
 public class Atom {
-    private int x;
-    private int y;
     private double temperature;
     private double prevTemperature;
     Color color;
     private double MIN_TEMP = 0;
     private double MAX_TEMP = 100;
-    private Simulation simulation;
-
-    public Atom(int x, int y, double temperature, Simulation simulation) {
-        this.x = x;
-        this.y = y;
+    public Atom(float temperature){
         this.temperature = temperature;
-        this.prevTemperature = temperature;
-        this.color = getTemperatureColor(temperature);//Color.BLUE;
-        this.simulation = simulation;
+        this.color = Color.BLUE;
     }
-
-    public int getX() {
-        return x;
-    }
-
-    public int getY() {
-        return y;
-    }
-
     public void setPrevTemperature(double prevTemperature) {
         this.prevTemperature = prevTemperature;
     }
@@ -49,15 +32,10 @@ public class Atom {
         return temperature;
     }
 
-
     public void setTemperature(double temperature) {
-        if (this.temperature != temperature) {
-            this.temperature = temperature;
-            this.color = getTemperatureColor(temperature);
-            simulation.changedAtoms.add(this); // Add the atom to the changedAtoms list
-        }
+        this.temperature = temperature;
+        this.color = getTemperatureColor(temperature);
     }
-
 
     public Color getColor() {
         return color;
