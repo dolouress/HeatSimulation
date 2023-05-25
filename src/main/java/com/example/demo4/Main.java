@@ -12,13 +12,9 @@ public class Main extends Application {
         Group root = new Group();
         primaryStage.setTitle("Heat Simulation");
         primaryStage.setScene(new Scene(root));
-        Simulation sim = new Simulation(100, 2,800, 600);
-        //jos koliko vrucina
+        Simulation sim = new Simulation(100, 100,800, 600);
         root.getChildren().add(sim);
-        //event listener kad se sim update da se update i pixels atomi..
         primaryStage.show();
-        //pitaj za input parameters da li preko konzole
-        //1.3 sta znaci ono da se adjustuje
     }
 
 
