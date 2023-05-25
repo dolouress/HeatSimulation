@@ -29,7 +29,7 @@ public class Simulation extends Canvas {
         if (arrayOfRandoms == null) {
             arrayOfRandoms = new int[2 * numOfHeat];
             for (int i = 0; i < numOfHeat * 2; i++) {
-                int broj = rand.nextInt(n);
+                int broj = rand.nextInt(n-1);
                 arrayOfRandoms[i] = broj;
                 System.out.println(broj);
             }
@@ -38,14 +38,12 @@ public class Simulation extends Canvas {
         new AnimationTimer() {
             private long startTime = System.nanoTime();
             private boolean finished = false;
-            boolean stable ;
-            int index;
+            private boolean stable;
+            private int index;
 
             @Override
             public void handle(long now) {
                 if (finished) return;
-
-                stable = true;
 
                 index = 0;
                 for (int i = 0; i < numOfHeat; i++) {
@@ -58,19 +56,25 @@ public class Simulation extends Canvas {
                         grid[i][j].setPrevTemperature(grid[i][j].getTemperature());
                     }
                 }
-                double newTemperature = 0;
+                stable = true;
+                double newTemperature, prevTemperature;
                 for (int i = 0; i < n; i++) {
                     for (int j = 0; j < n; j++) {
                         Atom currentAtom = grid[i][j];
                         newTemperature = calculateNewTemperature(i, j);
-                        if (newTemperature != currentAtom.getPrevTemperature()) {
+                        prevTemperature  = currentAtom.getPrevTemperature();
+                        if (newTemperature != prevTemperature) {
                             currentAtom.setTemperature(newTemperature);
                             Color newColor = currentAtom.getTemperatureColor(newTemperature);
                             currentAtom.setColor(newColor);
                             gc.setFill(newColor);
                             gc.fillRect(i * size, j * size, size, size);
                             gc.strokeRect(i * size, j * size, size, size);
-                            if (Math.abs(newTemperature - currentAtom.getPrevTemperature()) > 0.25) {
+                            /*System.out.println(newTemperature);
+                            System.out.println(currentAtom.getPrevTemperature());
+                            System.out.println(Math.abs(newTemperature - currentAtom.getPrevTemperature()));
+                            System.out.println("------------------");*/
+                            if (Math.abs(newTemperature - prevTemperature) > 25) {
                                 stable = false;
                             }
                         }

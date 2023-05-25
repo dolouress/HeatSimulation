@@ -12,7 +12,7 @@ public class Main extends Application {
         Group root = new Group();
         primaryStage.setTitle("Heat Simulation");
         primaryStage.setScene(new Scene(root));
-        Simulation sim = new Simulation(20, 6,800, 600);
+        Simulation sim = new Simulation(100, 2,800, 600);
         //jos koliko vrucina
         root.getChildren().add(sim);
         //event listener kad se sim update da se update i pixels atomi..
