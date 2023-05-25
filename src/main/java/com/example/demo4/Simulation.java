@@ -9,20 +9,26 @@ import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
 public class Simulation extends Canvas {
+    private static final long SEED = 1234; // Seed value for the random generator
+
     private int n, numOfHeat, width, height, size;
     private Atom[][] grid;
     private GraphicsContext gc;
 
-    private static Random rand = new Random();
+    private static Random rand = new Random(SEED);
     private static int[] arrayOfRandoms;
     boolean firstIteration;
 
-    public Simulation(int n, int numOfHeat, int width, int height) {
+    public Simulation( int numOfHeat, int width, int height) {
         super(width, height);
-        this.n = n; // num of atoms
         this.width = width;
         this.height = height;
-        this.size = (width/ n);
+        this.n = width/8; // num of atoms n*n
+        if(width>height)
+            this.size = (width/ n);
+        else
+            this.size = (height/ n);
+        if(size == 1) size++;
         this.grid = initializeGrid(n);
         this.gc = getGraphicsContext2D();
         this.numOfHeat = numOfHeat;

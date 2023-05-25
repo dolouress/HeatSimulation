@@ -12,7 +12,7 @@ public class Main extends Application {
         Group root = new Group();
         primaryStage.setTitle("Heat Simulation");
         primaryStage.setScene(new Scene(root));
-        Simulation sim = new Simulation(100, 50,800, 600);
+        Simulation sim = new Simulation(1000,1000, 800);
         root.getChildren().add(sim);
         primaryStage.show();
     }
