@@ -11,7 +11,7 @@ import java.util.concurrent.TimeUnit;
 public class Simulation extends Canvas {
     private static final long SEED = 1234; // Seed value for the random generator
 
-    private int n, numOfHeat, width, height, size;
+    private int n, numOfHeat, size;
     private Atom[][] grid;
     private GraphicsContext gc;
 
@@ -19,35 +19,31 @@ public class Simulation extends Canvas {
     private static int[] arrayOfRandoms;
     boolean firstIteration;
 
-    public Simulation( int numOfHeat, int width, int height) {
+    public Simulation(int numOfHeat, double width, double height) {
         super(width, height);
-        this.width = width;
-        this.height = height;
-        this.n = width/8; // num of atoms n*n
-        if(width>height)
-            this.size = (width/ n);
-        else
-            this.size = (height/ n);
-        if(size == 1) size++;
-        this.grid = initializeGrid(n);
+        this.n = calculateNumOfAtoms(width, height);
+        this.size = calculateAtomSize(width, height, this.n);
         this.gc = getGraphicsContext2D();
+        this.grid = initializeGrid(n);
         this.numOfHeat = numOfHeat;
         this.firstIteration = true;
+
+        this.setWidth(width);
+        this.setHeight(height);
 
         if (arrayOfRandoms == null) {
             arrayOfRandoms = new int[2 * numOfHeat];
             for (int i = 0; i < numOfHeat * 2; i++) {
-                int broj = rand.nextInt(n-1);
+                int broj = rand.nextInt(n - 1);
                 arrayOfRandoms[i] = broj;
                 System.out.println(broj);
             }
         }
 
-
         new AnimationTimer() {
             private long startTime = System.nanoTime();
             private boolean finished = false;
-            private boolean stable =  false;
+            private boolean stable = false;
             private int index;
 
             @Override
@@ -56,22 +52,21 @@ public class Simulation extends Canvas {
                 double newTemperature = 0;
                 index = 0;
 
-                if(!stable){
-                    for(int i = 0; i<n;i++){
-                        for (int j = 0;j<n;j++){
+                if (!stable) {
+                    for (int i = 0; i < n; i++) {
+                        for (int j = 0; j < n; j++) {
                             Atom currentAtom = grid[i][j];
                             Color newColor;
-                            if(!firstIteration){
+                            if (!firstIteration) {
                                 newTemperature = calculateNewTemperature(i, j);
                                 newColor = currentAtom.getTemperatureColor(newTemperature);
-                                if(newColor!=Color.BLUE) {
+                                if (newColor != Color.BLUE) {
                                     currentAtom.setColor(newColor);
                                     gc.setFill(newColor);
                                     gc.fillRect(i * size, j * size, size, size);
                                     gc.strokeRect(i * size, j * size, size, size);
                                 }
-                            }
-                            else{
+                            } else {
                                 newColor = currentAtom.getTemperatureColor(newTemperature);
                                 currentAtom.setColor(newColor);
                                 gc.setFill(newColor);
@@ -92,26 +87,18 @@ public class Simulation extends Canvas {
                 double prevTemperature = 0;
                 for (int i = 0; i < n; i++) {
                     for (int j = 0; j < n; j++) {
-                                Atom currentAtom = grid[i][j];
-                                prevTemperature = currentAtom.getTemperature();
-                                currentAtom.setPrevTemperature(prevTemperature);
-                                newTemperature = calculateNewTemperature(i, j);
-                                if (newTemperature != prevTemperature) {
-                                    currentAtom.setTemperature(newTemperature);
-                                    /*System.out.println("new temp:"+i+j+"temp:"+newTemperature);
-                                    System.out.println("prev temp:"+i+j+"temp:"+prevTemperature);
-                                    System.out.println(Math.abs(newTemperature - prevTemperature));
-                                    System.out.println("------------------");*/
-                                    if ((Math.abs(newTemperature - prevTemperature)) > 0.25 && (prevTemperature!=100)) {
-                                        stable = false;
-                                    }
-                                }
-
+                        Atom currentAtom = grid[i][j];
+                        prevTemperature = currentAtom.getTemperature();
+                        currentAtom.setPrevTemperature(prevTemperature);
+                        newTemperature = calculateNewTemperature(i, j);
+                        if (newTemperature != prevTemperature) {
+                            currentAtom.setTemperature(newTemperature);
+                            if ((Math.abs(newTemperature - prevTemperature)) > 0.25 && (prevTemperature != 100)) {
+                                stable = false;
+                            }
+                        }
                     }
                 }
-              /*  if(!stable){
-                    System.out.println("-----------------------NOT STABLE END CYCLE---------------------");
-                }*/
 
                 if (stable) {
                     long endTime = System.nanoTime();
@@ -123,21 +110,79 @@ public class Simulation extends Canvas {
         }.start();
     }
 
+    public void setWidth1(double width) {
+        super.setWidth(width);
+        this.n = calculateNumOfAtoms(width, getHeight());
+        this.size = calculateAtomSize(width, getHeight(), this.n);
+        this.grid = initializeGrid(n);
+        redraw();
+    }
+
+    public void setHeight1(double height) {
+        super.setHeight(height);
+        this.n = calculateNumOfAtoms(getWidth(), height);
+        this.size = calculateAtomSize(getWidth(), height, this.n);
+        this.grid = initializeGrid(n);
+        redraw();
+    }
+
+    private int calculateNumOfAtoms(double width, double height) {
+        int n;
+        if (width > height) {
+            n = (int) (width / 8);
+        } else {
+            n = (int) (height / 8);
+        }
+        if (n < 1) {
+            n = 1;
+        }
+        return n;
+    }
+
+    private int calculateAtomSize(double width, double height, int n) {
+        int size;
+        if (width > height) {
+            size = (int) (width / n);
+        } else {
+            size = (int) (height / n);
+        }
+        if (size <= 1) {
+            size ++;
+        }
+        return size;
+    }
+
+    private void redraw() {
+        gc.clearRect(0, 0, getWidth(), getHeight());
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) {
+                Atom currentAtom = grid[i][j];
+                Color color = currentAtom.getColor();
+                gc.setFill(color);
+                gc.fillRect(i * size, j * size, size, size);
+                gc.strokeRect(i * size, j * size, size, size);
+            }
+        }
+    }
+
     public void applyFixedTemperature(int i, int j, double temperature) {
-        grid[i][j].setTemperature(temperature);
-        grid[i][j].setPrevTemperature(temperature);
-        int up = (j + 1 + n) % n;
-        int down = (j - 1 + n) % n;
-        int right = (i + 1 + n) % n;
-        int left = (i - 1 + n) % n;
-        grid[i][up].setTemperature(temperature);
-        grid[right][j].setTemperature(temperature);
-        grid[i][down].setTemperature(temperature);
-        grid[left][j].setTemperature(temperature);
-        grid[i][up].setPrevTemperature(temperature);
-        grid[right][j].setPrevTemperature(temperature);
-        grid[i][down].setPrevTemperature(temperature);
-        grid[left][j].setPrevTemperature(temperature);
+        if(i<n && j<n){
+            grid[i][j].setTemperature(temperature);
+            grid[i][j].setPrevTemperature(temperature);
+            int up = (j + 1 + n) % n;
+            int down = (j - 1 + n) % n;
+            int right = (i + 1 + n) % n;
+            int left = (i - 1 + n) % n;
+            grid[i][up].setTemperature(temperature);
+            grid[right][j].setTemperature(temperature);
+            grid[i][down].setTemperature(temperature);
+            grid[left][j].setTemperature(temperature);
+            grid[i][up].setPrevTemperature(temperature);
+            grid[right][j].setPrevTemperature(temperature);
+            grid[i][down].setPrevTemperature(temperature);
+            grid[left][j].setPrevTemperature(temperature);
+        }
+
     }
 
     private double calculateNewTemperature(int i, int j) {
@@ -186,4 +231,5 @@ public class Simulation extends Canvas {
         }
         return grid;
     }
+
 }
