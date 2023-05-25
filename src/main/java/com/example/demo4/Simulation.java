@@ -41,7 +41,6 @@ public class Simulation extends Canvas {
 
                 boolean stable = true;
 
-
                 int index = 0;
                 for(int i =0;i<numOfHeat;i++){
                     applyFixedTemperature(arrayOfRandoms[index], arrayOfRandoms[index+1],100);
@@ -84,7 +83,7 @@ public class Simulation extends Canvas {
                                     grid[left][j].getPrevTemperature()) / 3;
                         }
 
-                        //if(newTemperature!=grid[i][j].getPrevTemperature()){
+                        if(newTemperature!=grid[i][j].getPrevTemperature()){
                             grid[i][j].setTemperature(newTemperature);
 
                             //TRIAL
@@ -94,14 +93,11 @@ public class Simulation extends Canvas {
                             gc.fillRect(i*size,j*size,size,size);
                             gc.strokeRect(i*size,j*size,size,size);
                             //END TRIAL
-                        //}
 
-
-
-                        if (Math.abs(grid[i][j].getTemperature() - grid[i][j].getPrevTemperature()) > 0.25) {
-                            stable = false;
+                            if (Math.abs(newTemperature - grid[i][j].getPrevTemperature()) > 0.25) {
+                                stable = false;
+                            }
                         }
-
                     }
 
                 }
