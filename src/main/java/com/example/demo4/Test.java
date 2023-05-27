@@ -12,6 +12,7 @@ import javafx.stage.Stage;
 
 import java.util.Random;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class Test extends Application{
     private static final long SEED = 1234; // Seed value for the random generator
@@ -59,9 +60,11 @@ public class Test extends Application{
         public static Atom[][] grid;
         public static GraphicsContext gc;
         public boolean finished = false;
-        public static boolean stable = false;
+        public static AtomicBoolean globalStable = new AtomicBoolean(false);
+        //public static boolean stable = false;
         private int index;
         public static boolean firstIteration = true;
+        public static AtomicBoolean[] stableFlags;
 
         public Simulation(int numOfHeat, double width, double height) {
             super(width, height);
@@ -74,6 +77,7 @@ public class Test extends Application{
             this.setWidth(width);
             this.setHeight(height);
 
+
             // Random points for heat sources
             if (arrayOfRandoms == null) {
                 arrayOfRandoms = new int[2 * numOfHeat];
@@ -82,6 +86,12 @@ public class Test extends Application{
                     arrayOfRandoms[i] = broj;
                     System.out.println(broj);
                 }
+            }
+
+            // Initialize stableFlags array
+            stableFlags = new AtomicBoolean[NUM_THREADS];
+            for (int i = 0; i < NUM_THREADS; i++) {
+                stableFlags[i] = new AtomicBoolean(false);
             }
 
             ExecutorService executorService = Executors.newFixedThreadPool(NUM_THREADS);
@@ -93,17 +103,42 @@ public class Test extends Application{
                 @Override
                 public void handle(long now) {
                     if (finished) return;
-                    if (!stable) {
+
+                    if(!firstIteration){
+                        // Update the global stable flag
+                        globalStable.set(true);
+                        // Check if all threads have finished and update the global stable flag
+                        for (int i = 0; i < NUM_THREADS; i++) {
+                            if (!stableFlags[i].get()) {
+                                globalStable.set(false);
+                                break;
+                            }
+                        }
+                    }
+
+                    if (!globalStable.get()) {
                         paint();
                         fixed();
                         firstIteration = false;
                         for (int i = 0; i < NUM_THREADS; i++) {
                             int start = i * (n / NUM_THREADS);
                             int end = start + (n / NUM_THREADS);
-                            executorService.execute(new SimulationTask(start, end, barrier));
+                            executorService.execute(new SimulationTask(start, end, barrier,i));
                         }
                     } else {
-                        long endTime = System.nanoTime();
+                            long endTime = System.nanoTime();
+                            long duration = TimeUnit.NANOSECONDS.toMillis(endTime - startTime);
+                            System.out.println("Simulation completed in " + duration + "ms");
+                            finished = true;
+                            executorService.shutdown();
+                            try {
+                                if (!executorService.awaitTermination(800, TimeUnit.MILLISECONDS)) {
+                                    executorService.shutdownNow();
+                                }
+                            } catch (InterruptedException e) {
+                                executorService.shutdownNow();
+                            }
+                        /*long endTime = System.nanoTime();
                         long duration = TimeUnit.NANOSECONDS.toMillis(endTime - startTime);
                         System.out.println("Simulation completed in " + duration + "ms");
                         finished = true;
@@ -114,7 +149,7 @@ public class Test extends Application{
                             }
                         } catch (InterruptedException e) {
                             executorService.shutdownNow();
-                        }
+                        }*/
                     }
                 }
             }.start();
@@ -222,17 +257,21 @@ public class Test extends Application{
 
         // RUNNABLE CLASS
         public static class SimulationTask implements Runnable {
-            int start, end;
+            int start, end, threadIndex;
             double prevTemperature = 0;
             private CyclicBarrier barrier;
-
-            public SimulationTask(int start, int end, CyclicBarrier barrier) {
+            //public static AtomicBoolean[] stableFlags;  // Array to store the local stability flags
+            boolean localStable = true;
+            public SimulationTask(int start, int end, CyclicBarrier barrier, int threadIndex) {
                 this.start = start;
                 this.end = end;
-                this.barrier  =barrier;
+                this.barrier = barrier;
+                this.threadIndex = threadIndex;
             }
             public void prije(){
-                stable = true;
+                //stable.set(true);
+                //stable = true;
+                localStable = true;
                 double newTemperature = 0;
                 for (int i = start; i < end; i++) {
                     for (int j = 0; j < n; j++) {
@@ -243,7 +282,9 @@ public class Test extends Application{
                         if (newTemperature != prevTemperature && newTemperature!=0) {
                             currentAtom.setTemperature(newTemperature);
                             if ((Math.abs(newTemperature - prevTemperature)) > 0.25 && (prevTemperature != 100)) {
-                                stable = false;
+                                //stable.set(false);
+                                //stable = false;
+                                localStable = false;
                             }
                         }
                     }
@@ -259,7 +300,7 @@ public class Test extends Application{
                 } catch (InterruptedException | BrokenBarrierException e) {
                     e.printStackTrace();
                 }
-
+                stableFlags[threadIndex].set(localStable);
             }
 
             public static void applyFixedTemperature(int i, int j, double temperature) {
