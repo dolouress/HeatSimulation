@@ -91,7 +91,7 @@ public class Simulation extends Canvas {
                         prevTemperature = currentAtom.getTemperature();
                         currentAtom.setPrevTemperature(prevTemperature);
                         newTemperature = calculateNewTemperature(i, j);
-                        if (newTemperature != prevTemperature) {
+                        if (newTemperature != prevTemperature && newTemperature!=0) {
                             currentAtom.setTemperature(newTemperature);
                             if ((Math.abs(newTemperature - prevTemperature)) > 0.25 && (prevTemperature != 100)) {
                                 stable = false;
@@ -170,17 +170,19 @@ public class Simulation extends Canvas {
             grid[i][j].setTemperature(temperature);
             grid[i][j].setPrevTemperature(temperature);
             int up = (j + 1 + n) % n;
-            int down = (j - 1 + n) % n;
+            //int down = (j - 1 + n) % n;
             int right = (i + 1 + n) % n;
-            int left = (i - 1 + n) % n;
+            //int left = (i - 1 + n) % n;
             grid[i][up].setTemperature(temperature);
             grid[right][j].setTemperature(temperature);
-            grid[i][down].setTemperature(temperature);
-            grid[left][j].setTemperature(temperature);
+            grid[right][up].setPrevTemperature(temperature);
+            //grid[i][down].setTemperature(temperature);
+            //grid[left][j].setTemperature(temperature);
             grid[i][up].setPrevTemperature(temperature);
             grid[right][j].setPrevTemperature(temperature);
-            grid[i][down].setPrevTemperature(temperature);
-            grid[left][j].setPrevTemperature(temperature);
+            grid[right][up].setPrevTemperature(temperature);
+            //grid[i][down].setPrevTemperature(temperature);
+            //grid[left][j].setPrevTemperature(temperature);
         }
 
     }

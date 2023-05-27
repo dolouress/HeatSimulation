@@ -9,16 +9,19 @@ import javafx.stage.Stage;
 
 public class Main extends Application {
 
-    private static final int WINDOW_WIDTH = 600; // Desired window width
+    private static final int WINDOW_WIDTH = 800; // Desired window width
     private static final int WINDOW_HEIGHT = 600; // Desired window height
+
+    private static final int NUM_OF_HEAT = 10; // Desired window height
 
     @Override
     public void start(Stage primaryStage) {
         primaryStage.setTitle("Simulation");
 
+
         // Create the root container
         StackPane root = new StackPane();
-        Simulation simulation = new Simulation(10, WINDOW_WIDTH, WINDOW_HEIGHT); // Pass the desired width and height to the Simulation constructor
+        Simulation simulation = new Simulation(NUM_OF_HEAT, WINDOW_WIDTH, WINDOW_HEIGHT); // Pass the desired width and height to the Simulation constructor
         root.getChildren().add(simulation);
 
         // Create the scene with the root container

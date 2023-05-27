@@ -5,36 +5,28 @@ import javafx.scene.paint.Color;
 public class Atom {
     private double temperature;
     private double prevTemperature;
-    Color color;
-    private double MIN_TEMP = 0;
-    private double MAX_TEMP = 100;
-    public Atom(float temperature){
+    private Color color;
+
+    public Atom(double temperature) {
         this.temperature = temperature;
-        this.color = Color.BLUE;
-    }
-    public void setPrevTemperature(double prevTemperature) {
-        this.prevTemperature = prevTemperature;
-    }
-    public Color getTemperatureColor(double temperature) {
-        //FIX THIS TO better color gradient???????
-        double tempPercent = (temperature - MIN_TEMP) / (MAX_TEMP - MIN_TEMP);
-        int red = (int) (255 * tempPercent);
-        int green = (int) (255 * (1 - tempPercent));
-        int blue = 255 - red - green;
-        Color c =  Color.rgb(red,blue,green);
-        return c;
+        this.prevTemperature = temperature;
+        this.color = getTemperatureColor(temperature);
     }
 
-    public double getPrevTemperature() {
-        return prevTemperature;
-    }
     public double getTemperature() {
         return temperature;
     }
 
     public void setTemperature(double temperature) {
         this.temperature = temperature;
-        this.color = getTemperatureColor(temperature);
+    }
+
+    public double getPrevTemperature() {
+        return prevTemperature;
+    }
+
+    public void setPrevTemperature(double prevTemperature) {
+        this.prevTemperature = prevTemperature;
     }
 
     public Color getColor() {
@@ -44,4 +36,24 @@ public class Atom {
     public void setColor(Color color) {
         this.color = color;
     }
+
+    public Color getTemperatureColor(double temperature) {
+        double hue;
+        if (temperature >= 95) {
+            hue = map(temperature, 80, 100, 0, 30); // Map higher temperatures to a narrower red range
+        } else {
+            hue = map(temperature, 0, 50, 255, 0); // Map lower temperatures to the full blue to red range
+        }
+        return Color.hsb(hue, 1, 1);
+    }
+
+    private double map(double value, double inMin, double inMax, double outMin, double outMax) {
+        double t = (value - inMin) / (inMax - inMin);
+        t = Math.max(0, Math.min(1, t)); // Clamp t between 0 and 1
+        // Apply a non-linear mapping to emphasize red in the middle and at the beginning
+        double mappedValue = t * t * outMax + (1 - t * t) * outMin;
+        return mappedValue;
+    }
+
+
 }
