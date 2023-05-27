@@ -11,25 +11,19 @@ import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 
 import java.util.Random;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-
+import java.util.concurrent.*;
 
 public class Test extends Application{
-
     private static final long SEED = 1234; // Seed value for the random generator
-
     private static final int WINDOW_WIDTH = 800; // Desired window width
     private static final int WINDOW_HEIGHT = 600; // Desired window height
     private static final int NUM_OF_HEAT = 10; // Number of heat sources
-    private static final int NUM_THREADS = 2; // Number of parallel threads
-
+    private static final int NUM_THREADS = 10; // Number of parallel threads
     private static Random rand = new Random(SEED);
     private static int[] arrayOfRandoms;
 
     @Override
-    public void start(Stage primaryStage) {
+   public void start(Stage primaryStage) {
         primaryStage.setTitle("Simulation");
 
         // Create the root container
@@ -64,9 +58,8 @@ public class Test extends Application{
         public static int n, numOfHeat, size;
         public static Atom[][] grid;
         public static GraphicsContext gc;
-
-        public static boolean finished = false;
-        private boolean stable = false;
+        public boolean finished = false;
+        public static boolean stable = false;
         private int index;
         public static boolean firstIteration = true;
 
@@ -78,11 +71,10 @@ public class Test extends Application{
             this.grid = initializeGrid(n);
             this.numOfHeat = numOfHeat;
             this.firstIteration = true;
-
             this.setWidth(width);
             this.setHeight(height);
 
-
+            // Random points for heat sources
             if (arrayOfRandoms == null) {
                 arrayOfRandoms = new int[2 * numOfHeat];
                 for (int i = 0; i < numOfHeat * 2; i++) {
@@ -93,6 +85,7 @@ public class Test extends Application{
             }
 
             ExecutorService executorService = Executors.newFixedThreadPool(NUM_THREADS);
+            CyclicBarrier barrier = new CyclicBarrier(NUM_THREADS);
 
             new AnimationTimer() {
                 private long startTime = System.nanoTime();
@@ -101,27 +94,26 @@ public class Test extends Application{
                 public void handle(long now) {
                     if (finished) return;
                     if (!stable) {
-                        crtaj();
+                        paint();
                         fixed();
                         firstIteration = false;
                         for (int i = 0; i < NUM_THREADS; i++) {
                             int start = i * (n / NUM_THREADS);
-                            int end = (i + 1) * (n / NUM_THREADS)-1;
-
-                            executorService.execute(new SimulationTask(start, end));
+                            int end = start + (n / NUM_THREADS);
+                            executorService.execute(new SimulationTask(start, end, barrier));
                         }
                     } else {
+                        long endTime = System.nanoTime();
+                        long duration = TimeUnit.NANOSECONDS.toMillis(endTime - startTime);
+                        System.out.println("Simulation completed in " + duration + "ms");
+                        finished = true;
                         executorService.shutdown();
                         try {
-                            executorService.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+                            if (!executorService.awaitTermination(800, TimeUnit.MILLISECONDS)) {
+                                executorService.shutdownNow();
+                            }
                         } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
-                        if (stable) {
-                            long endTime = System.nanoTime();
-                            long duration = TimeUnit.NANOSECONDS.toMillis(endTime - startTime);
-                            System.out.println("Simulation completed in " + duration + "ms");
-                            finished = true;
+                            executorService.shutdownNow();
                         }
                     }
                 }
@@ -135,7 +127,7 @@ public class Test extends Application{
             }
         }
 
-        public void crtaj() {
+        public void paint() {
             for (int i = 0; i < n; i++) {
                 for (int j = 0; j < n; j++) {
                     Atom currentAtom = grid[i][j];
@@ -229,16 +221,18 @@ public class Test extends Application{
 
 
         // RUNNABLE CLASS
-        private static class SimulationTask implements Runnable {
-            static int start, end;
-            static boolean stable = true;
-            static double prevTemperature = 0;
+        public static class SimulationTask implements Runnable {
+            int start, end;
+            double prevTemperature = 0;
+            private CyclicBarrier barrier;
 
-            public SimulationTask(int start, int end) {
+            public SimulationTask(int start, int end, CyclicBarrier barrier) {
                 this.start = start;
                 this.end = end;
+                this.barrier  =barrier;
             }
             public void prije(){
+                stable = true;
                 double newTemperature = 0;
                 for (int i = start; i < end; i++) {
                     for (int j = 0; j < n; j++) {
@@ -254,12 +248,17 @@ public class Test extends Application{
                         }
                     }
                 }
-                firstIteration = false;
+                if(firstIteration){firstIteration = false;}
             }
             @Override
             public void run() {
                 System.out.println(Thread.currentThread().getName());
                 prije();
+                try {
+                    barrier.await(); // Wait for all threads to finish their computation
+                } catch (InterruptedException | BrokenBarrierException e) {
+                    e.printStackTrace();
+                }
 
             }
 
