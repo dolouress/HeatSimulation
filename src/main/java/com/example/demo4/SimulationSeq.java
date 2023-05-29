@@ -16,14 +16,22 @@ import java.util.concurrent.TimeUnit;
 
 public class SimulationSeq extends Application {
     private static final long SEED = 1234; // Seed value for the random generator
+    /*private int WINDOW_WIDTH = 800; // Desired window width
+    private int WINDOW_HEIGHT = 600; // Desired window height
+    private int NUM_OF_HEAT = 1000; // Number of heat sources*/
 
-    private static final int WINDOW_WIDTH = 800; // Desired window width
-    private static final int WINDOW_HEIGHT = 600; // Desired window height
-    private static final int NUM_OF_HEAT = 10; // Number of heat sources
+    private int width;
+    private int height ;
+    private int numOfHeat;
 
     private static Random rand = new Random(SEED);
     private static int[] arrayOfRandoms;
-    private boolean firstIteration;
+    public SimulationSeq(){}
+    public SimulationSeq(int width, int height, int numOfHeat) {
+        this.width = width;
+        this.height = height;
+        this.numOfHeat = numOfHeat;
+    }
 
     @Override
     public void start(Stage primaryStage) {
@@ -31,11 +39,11 @@ public class SimulationSeq extends Application {
 
         // Create the root container
         StackPane root = new StackPane();
-        Simulation simulation = new Simulation(NUM_OF_HEAT, WINDOW_WIDTH, WINDOW_HEIGHT); // Pass the desired width and height to the Simulation constructor
+        Simulation simulation = new Simulation(numOfHeat, width, height); // Pass the desired width and height to the Simulation constructor
         root.getChildren().add(simulation);
 
         // Create the scene with the root container
-        Scene scene = new Scene(root, WINDOW_WIDTH, WINDOW_HEIGHT);
+        Scene scene = new Scene(root, width, height);
         primaryStage.setScene(scene);
 
         // Update the width and height properties when the window is resized

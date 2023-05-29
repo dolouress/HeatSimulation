@@ -1,8 +1,6 @@
 package com.example.demo4;
 import javafx.animation.AnimationTimer;
 import javafx.application.Application;
-import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableValue;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
@@ -14,14 +12,23 @@ import java.util.Random;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class Test extends Application{
+public class SimulationParallel extends Application{
     private static final long SEED = 1234; // Seed value for the random generator
-    private static final int WINDOW_WIDTH = 800; // Desired window width
-    private static final int WINDOW_HEIGHT = 600; // Desired window height
-    private static final int NUM_OF_HEAT = 10; // Number of heat sources
-    private static final int NUM_THREADS = 10; // Number of parallel threads
+    /*private int WINDOW_WIDTH = 800; // Desired window width
+    private int WINDOW_HEIGHT = 600; // Desired window height
+    private int NUM_OF_HEAT = 1000; // Number of heat sources*/
+    private static final int NUM_THREADS = 12; // Number of parallel threads
     private static Random rand = new Random(SEED);
     private static int[] arrayOfRandoms;
+    private int width;
+    private int height ;
+    private int numOfHeat;
+    public SimulationParallel(){}
+    public SimulationParallel(int width, int height, int numOfHeat) {
+        this.width = width;
+        this.height = height;
+        this.numOfHeat = numOfHeat;
+    }
 
     @Override
    public void start(Stage primaryStage) {
@@ -29,11 +36,11 @@ public class Test extends Application{
 
         // Create the root container
         StackPane root = new StackPane();
-        Simulation simulation = new Simulation(NUM_OF_HEAT, WINDOW_WIDTH, WINDOW_HEIGHT); // Pass the desired width and height to the Simulation constructor
+        Simulation simulation = new Simulation(numOfHeat, width, height); // Pass the desired width and height to the Simulation constructor
         root.getChildren().add(simulation);
 
         // Create the scene with the root container
-        Scene scene = new Scene(root, WINDOW_WIDTH, WINDOW_HEIGHT);
+        Scene scene = new Scene(root, width, height);
         primaryStage.setScene(scene);
 
         // Update the width and height properties when the window is resized
@@ -51,9 +58,9 @@ public class Test extends Application{
 
         primaryStage.show();
     }
-    public static void main(String[] args) {
+    /*public void main(String[] args) {
         launch(args);
-    }
+    }*/
 
     public static class Simulation extends Canvas {
         public static int n, numOfHeat, size;
@@ -138,18 +145,6 @@ public class Test extends Application{
                             } catch (InterruptedException e) {
                                 executorService.shutdownNow();
                             }
-                        /*long endTime = System.nanoTime();
-                        long duration = TimeUnit.NANOSECONDS.toMillis(endTime - startTime);
-                        System.out.println("Simulation completed in " + duration + "ms");
-                        finished = true;
-                        executorService.shutdown();
-                        try {
-                            if (!executorService.awaitTermination(800, TimeUnit.MILLISECONDS)) {
-                                executorService.shutdownNow();
-                            }
-                        } catch (InterruptedException e) {
-                            executorService.shutdownNow();
-                        }*/
                     }
                 }
             }.start();
@@ -260,7 +255,6 @@ public class Test extends Application{
             int start, end, threadIndex;
             double prevTemperature = 0;
             private CyclicBarrier barrier;
-            //public static AtomicBoolean[] stableFlags;  // Array to store the local stability flags
             boolean localStable = true;
             public SimulationTask(int start, int end, CyclicBarrier barrier, int threadIndex) {
                 this.start = start;
@@ -269,8 +263,6 @@ public class Test extends Application{
                 this.threadIndex = threadIndex;
             }
             public void prije(){
-                //stable.set(true);
-                //stable = true;
                 localStable = true;
                 double newTemperature = 0;
                 for (int i = start; i < end; i++) {
@@ -282,8 +274,6 @@ public class Test extends Application{
                         if (newTemperature != prevTemperature && newTemperature!=0) {
                             currentAtom.setTemperature(newTemperature);
                             if ((Math.abs(newTemperature - prevTemperature)) > 0.25 && (prevTemperature != 100)) {
-                                //stable.set(false);
-                                //stable = false;
                                 localStable = false;
                             }
                         }
@@ -293,7 +283,7 @@ public class Test extends Application{
             }
             @Override
             public void run() {
-                System.out.println(Thread.currentThread().getName());
+                //System.out.println(Thread.currentThread().getName());
                 prije();
                 try {
                     barrier.await(); // Wait for all threads to finish their computation

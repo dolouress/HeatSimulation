@@ -9,10 +9,12 @@ import javafx.stage.Stage;
 
 public class Main extends Application {
 
-    private static final int WINDOW_WIDTH = 800; // Desired window width
-    private static final int WINDOW_HEIGHT = 600; // Desired window height
+    public int WINDOW_WIDTH=800; // Desired window width
+    public int WINDOW_HEIGHT = 800; // Desired window height
 
-    private static final int NUM_OF_HEAT = 10; // Desired window height
+    public int NUM_OF_HEAT = 1000; // Desired window height
+
+
 
     @Override
     public void start(Stage primaryStage) {
@@ -43,8 +45,11 @@ public class Main extends Application {
 
         primaryStage.show();
     }
+    public void setWINDOW_WIDTH(int WINDOW_WIDTH) {
+        this.WINDOW_WIDTH = WINDOW_WIDTH;
+    }
 
-    public static void main(String[] args) {
+    public void main(String[] args) {
         launch(args);
     }
 }
