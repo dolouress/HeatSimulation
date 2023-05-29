@@ -17,7 +17,7 @@ public class SimulationParallel extends Application{
     /*private int WINDOW_WIDTH = 800; // Desired window width
     private int WINDOW_HEIGHT = 600; // Desired window height
     private int NUM_OF_HEAT = 1000; // Number of heat sources*/
-    private static final int NUM_THREADS = 12; // Number of parallel threads
+    private static final int NUM_THREADS = 3; // Number of parallel threads
     private static Random rand = new Random(SEED);
     private static int[] arrayOfRandoms;
     private int width;
@@ -68,7 +68,6 @@ public class SimulationParallel extends Application{
         public static GraphicsContext gc;
         public boolean finished = false;
         public static AtomicBoolean globalStable = new AtomicBoolean(false);
-        //public static boolean stable = false;
         private int index;
         public static boolean firstIteration = true;
         public static AtomicBoolean[] stableFlags;
@@ -102,7 +101,7 @@ public class SimulationParallel extends Application{
             }
 
             ExecutorService executorService = Executors.newFixedThreadPool(NUM_THREADS);
-            CyclicBarrier barrier = new CyclicBarrier(NUM_THREADS);
+            CountDownLatch iterationLatch = new CountDownLatch(NUM_THREADS);
 
             new AnimationTimer() {
                 private long startTime = System.nanoTime();
@@ -133,7 +132,7 @@ public class SimulationParallel extends Application{
                             if(n%NUM_THREADS!=0 && i==NUM_THREADS-1){
                                 end = n;
                             }
-                            executorService.execute(new SimulationTask(start, end, barrier,i));
+                            executorService.execute(new SimulationTask(start, end, iterationLatch, i));
                         }
                     } else {
                         long endTime = System.nanoTime();
@@ -159,6 +158,8 @@ public class SimulationParallel extends Application{
                 index += 2;
             }
         }
+
+
 
         public void paint() {
             for (int i = 0; i < n; i++) {
@@ -257,12 +258,12 @@ public class SimulationParallel extends Application{
         public static class SimulationTask implements Runnable {
             int start, end, threadIndex;
             double prevTemperature = 0;
-            private CyclicBarrier barrier;
+            private final CountDownLatch iterationLatch;
             boolean localStable = true;
-            public SimulationTask(int start, int end, CyclicBarrier barrier, int threadIndex) {
+            public SimulationTask(int start, int end, CountDownLatch iterationLatch, int threadIndex) {
                 this.start = start;
                 this.end = end;
-                this.barrier = barrier;
+                this.iterationLatch = iterationLatch;
                 this.threadIndex = threadIndex;
             }
             public void prije(){
@@ -288,12 +289,14 @@ public class SimulationParallel extends Application{
             public void run() {
                 //System.out.println(Thread.currentThread().getName());
                 prije();
-                try {
-                    barrier.await(); // Wait for all threads to finish their computation
-                } catch (InterruptedException | BrokenBarrierException e) {
-                    e.printStackTrace();
-                }
                 stableFlags[threadIndex].set(localStable);
+                iterationLatch.countDown();
+                try {
+                    iterationLatch.await(); // Wait for all threads to finish this iteration
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+
             }
 
             public static void applyFixedTemperature(int i, int j, double temperature) {
