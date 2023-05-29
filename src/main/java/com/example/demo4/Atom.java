@@ -12,6 +12,13 @@ public class Atom {
         this.prevTemperature = temperature;
         this.color = getTemperatureColor(temperature);
     }
+    public boolean isStable(){
+        if ((Math.abs(temperature - prevTemperature)) > 0.25 && (prevTemperature != 100)) {
+            return false;
+        }
+        else
+            return true;
+    }
 
     public double getTemperature() {
         return temperature;

@@ -16,12 +16,12 @@ public class MainApp extends Application {
     @Override
     public void start(Stage primaryStage) {
         Scanner scanner = new Scanner(System.in);
-        System.out.println("Input width:");
+        /*System.out.println("Input width:");
         width = scanner.nextInt();
         System.out.println("Input height:");
         height = scanner.nextInt();
         System.out.println("Input number of hear sources:");
-        heats = scanner.nextInt();
+        heats = scanner.nextInt();*/
 
 
         System.out.println("Choose simulation mode:");

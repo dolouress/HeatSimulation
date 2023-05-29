@@ -31,7 +31,7 @@ public class SimulationParallel extends Application{
     }
 
     @Override
-   public void start(Stage primaryStage) {
+    public void start(Stage primaryStage) {
         primaryStage.setTitle("Simulation");
 
         // Create the root container
@@ -130,21 +130,24 @@ public class SimulationParallel extends Application{
                         for (int i = 0; i < NUM_THREADS; i++) {
                             int start = i * (n / NUM_THREADS);
                             int end = start + (n / NUM_THREADS);
+                            if(n%NUM_THREADS!=0 && i==NUM_THREADS-1){
+                                end = n;
+                            }
                             executorService.execute(new SimulationTask(start, end, barrier,i));
                         }
                     } else {
-                            long endTime = System.nanoTime();
-                            long duration = TimeUnit.NANOSECONDS.toMillis(endTime - startTime);
-                            System.out.println("Simulation completed in " + duration + "ms");
-                            finished = true;
-                            executorService.shutdown();
-                            try {
-                                if (!executorService.awaitTermination(800, TimeUnit.MILLISECONDS)) {
-                                    executorService.shutdownNow();
-                                }
-                            } catch (InterruptedException e) {
+                        long endTime = System.nanoTime();
+                        long duration = TimeUnit.NANOSECONDS.toMillis(endTime - startTime);
+                        System.out.println("Simulation completed in " + duration + "ms");
+                        finished = true;
+                        executorService.shutdown();
+                        try {
+                            if (!executorService.awaitTermination(800, TimeUnit.MILLISECONDS)) {
                                 executorService.shutdownNow();
                             }
+                        } catch (InterruptedException e) {
+                            executorService.shutdownNow();
+                        }
                     }
                 }
             }.start();
