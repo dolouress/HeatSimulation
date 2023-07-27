@@ -112,8 +112,8 @@ public class SimulationSeq extends Application {
                                 Atom currentAtom = grid[i][j];
                                 Color newColor;
                                 if (!firstIteration) {
-                                    newTemperature = calculateNewTemperature(i, j);
-                                    newColor = currentAtom.getTemperatureColor(newTemperature);
+                                    //newTemperature = calculateNewTemperature(i, j);
+                                    newColor = currentAtom.getTemperatureColor(currentAtom.getTemperature());
                                     if (newColor != Color.BLUE) {
                                         currentAtom.setColor(newColor);
                                         gc.setFill(newColor);
@@ -121,7 +121,7 @@ public class SimulationSeq extends Application {
                                         gc.strokeRect(i * size, j * size, size, size);
                                     }
                                 } else {
-                                    newColor = currentAtom.getTemperatureColor(newTemperature);
+                                    newColor = currentAtom.getTemperatureColor(currentAtom.getTemperature());
                                     currentAtom.setColor(newColor);
                                     gc.setFill(newColor);
                                     gc.fillRect(i * size, j * size, size, size);

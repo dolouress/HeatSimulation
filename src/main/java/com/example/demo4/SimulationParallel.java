@@ -17,12 +17,10 @@ public class SimulationParallel extends Application{
     /*private int WINDOW_WIDTH = 800; // Desired window width
     private int WINDOW_HEIGHT = 600; // Desired window height
     private int NUM_OF_HEAT = 1000; // Number of heat sources*/
-    private static final int NUM_THREADS = 3; // Number of parallel threads
+    private static final int NUM_THREADS = 10; // Number of parallel threads
     private static Random rand = new Random(SEED);
     private static int[] arrayOfRandoms;
-    private int width;
-    private int height ;
-    private int numOfHeat;
+    private int width,height,numOfHeat;
     public SimulationParallel(){}
     public SimulationParallel(int width, int height, int numOfHeat) {
         this.width = width;
@@ -36,7 +34,7 @@ public class SimulationParallel extends Application{
 
         // Create the root container
         StackPane root = new StackPane();
-        Simulation simulation = new Simulation(numOfHeat, width, height); // Pass the desired width and height to the Simulation constructor
+        SimulationP simulation = new SimulationP(numOfHeat, width, height); // Pass the desired width and height to the Simulation constructor
         root.getChildren().add(simulation);
 
         // Create the scene with the root container
@@ -62,17 +60,18 @@ public class SimulationParallel extends Application{
         launch(args);
     }*/
 
-    public static class Simulation extends Canvas {
+    public static class SimulationP extends Canvas {
         public static int n, numOfHeat, size;
         public static Atom[][] grid;
         public static GraphicsContext gc;
         public boolean finished = false;
         public static AtomicBoolean globalStable = new AtomicBoolean(false);
+        //public static boolean stable = false;
         private int index;
         public static boolean firstIteration = true;
         public static AtomicBoolean[] stableFlags;
 
-        public Simulation(int numOfHeat, double width, double height) {
+        public SimulationP(int numOfHeat, double width, double height) {
             super(width, height);
             this.n = calculateNumOfAtoms(width, height);
             this.size = calculateAtomSize(width, height, this.n);
@@ -101,7 +100,7 @@ public class SimulationParallel extends Application{
             }
 
             ExecutorService executorService = Executors.newFixedThreadPool(NUM_THREADS);
-            CountDownLatch iterationLatch = new CountDownLatch(NUM_THREADS);
+            CyclicBarrier barrier = new CyclicBarrier(NUM_THREADS);
 
             new AnimationTimer() {
                 private long startTime = System.nanoTime();
@@ -132,7 +131,7 @@ public class SimulationParallel extends Application{
                             if(n%NUM_THREADS!=0 && i==NUM_THREADS-1){
                                 end = n;
                             }
-                            executorService.execute(new SimulationTask(start, end, iterationLatch, i));
+                            executorService.execute(new SimulationTask(start, end, barrier,i));
                         }
                     } else {
                         long endTime = System.nanoTime();
@@ -159,17 +158,17 @@ public class SimulationParallel extends Application{
             }
         }
 
-
-
         public void paint() {
             for (int i = 0; i < n; i++) {
                 for (int j = 0; j < n; j++) {
                     Atom currentAtom = grid[i][j];
                     Color newColor;
-                    double newTemperature = 0;
+                    //double newTemperature = 0;
+                    double prevTemperature = currentAtom.getTemperature();
+                    currentAtom.setPrevTemperature(prevTemperature);
                     if (!firstIteration) {
-                        newTemperature = SimulationTask.calculateNewTemperature(i, j);
-                        newColor = currentAtom.getTemperatureColor(newTemperature);
+                        //newTemperature = SimulationTask.calculateNewTemperature(i, j);
+                        newColor = currentAtom.getTemperatureColor(currentAtom.getTemperature());
                         if (newColor != Color.BLUE) {
                             currentAtom.setColor(newColor);
                             gc.setFill(newColor);
@@ -177,7 +176,7 @@ public class SimulationParallel extends Application{
                             gc.strokeRect(i * size, j * size, size, size);
                         }
                     } else {
-                        newColor = currentAtom.getTemperatureColor(newTemperature);
+                        newColor = currentAtom.getTemperatureColor(currentAtom.getTemperature());
                         currentAtom.setColor(newColor);
                         gc.setFill(newColor);
                         gc.fillRect(i * size, j * size, size, size);
@@ -258,12 +257,12 @@ public class SimulationParallel extends Application{
         public static class SimulationTask implements Runnable {
             int start, end, threadIndex;
             double prevTemperature = 0;
-            private final CountDownLatch iterationLatch;
+            private CyclicBarrier barrier;
             boolean localStable = true;
-            public SimulationTask(int start, int end, CountDownLatch iterationLatch, int threadIndex) {
+            public SimulationTask(int start, int end, CyclicBarrier barrier, int threadIndex) {
                 this.start = start;
                 this.end = end;
-                this.iterationLatch = iterationLatch;
+                this.barrier = barrier;
                 this.threadIndex = threadIndex;
             }
             public void prije(){
@@ -272,12 +271,13 @@ public class SimulationParallel extends Application{
                 for (int i = start; i < end; i++) {
                     for (int j = 0; j < n; j++) {
                         Atom currentAtom = grid[i][j];
-                        prevTemperature = currentAtom.getTemperature();
-                        currentAtom.setPrevTemperature(prevTemperature);
+                        prevTemperature = currentAtom.getPrevTemperature();
+                        //currentAtom.setPrevTemperature(prevTemperature);
                         newTemperature = calculateNewTemperature(i, j);
                         if (newTemperature != prevTemperature && newTemperature!=0) {
                             currentAtom.setTemperature(newTemperature);
                             if ((Math.abs(newTemperature - prevTemperature)) > 0.25 && (prevTemperature != 100)) {
+                                //System.out.println((Math.abs(newTemperature - prevTemperature)));
                                 localStable = false;
                             }
                         }
@@ -290,11 +290,10 @@ public class SimulationParallel extends Application{
                 //System.out.println(Thread.currentThread().getName());
                 prije();
                 stableFlags[threadIndex].set(localStable);
-                iterationLatch.countDown();
                 try {
-                    iterationLatch.await(); // Wait for all threads to finish this iteration
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
+                    barrier.await(); // Wait for all threads to finish their computation
+                } catch (InterruptedException | BrokenBarrierException e) {
+                    e.printStackTrace();
                 }
 
             }

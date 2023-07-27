@@ -1,4 +1,4 @@
-/*package com.example.demo4;
+package com.example.demo4;
 
 import javafx.animation.AnimationTimer;
 import javafx.application.Application;
@@ -10,20 +10,25 @@ import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 
 import java.util.Random;
-import java.util.concurrent.*;
+import java.util.concurrent.BrokenBarrierException;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class SimParTest extends Application {
-    private static final long SEED = 1234; // Seed value for the random generator
-    private static final int NUM_THREADS = 12; // Number of parallel threads
+    private static final long SEED = 1234;
+    private static final int NUM_THREADS = 8;
+
+    private int width=800;
+    private int height=500;
+    private int numOfHeat=10;
+
     private static Random rand = new Random(SEED);
     private static int[] arrayOfRandoms;
-    private int width;
-    private int height;
-    private int numOfHeat;
 
-    public SimParTest() {
-    }
+    public SimParTest() {}
 
     public SimParTest(int width, int height, int numOfHeat) {
         this.width = width;
@@ -35,120 +40,170 @@ public class SimParTest extends Application {
     public void start(Stage primaryStage) {
         primaryStage.setTitle("Simulation");
 
-        // Create the root container
         StackPane root = new StackPane();
-        Simulation simulation = new Simulation(numOfHeat, width, height); // Pass the desired width and height to the Simulation constructor
+        SimulationT simulation = new SimulationT(numOfHeat, width, height);
         root.getChildren().add(simulation);
 
-        // Create the scene with the root container
         Scene scene = new Scene(root, width, height);
         primaryStage.setScene(scene);
 
-        // Update the width and height properties when the window is resized
         scene.widthProperty().addListener((observable, oldValue, newValue) -> {
             double newWidth = newValue.doubleValue();
-            simulation.setWidth1(newWidth);
+            simulation.setWidth(newWidth);
         });
 
         scene.heightProperty().addListener((observable, oldValue, newValue) -> {
             double newHeight = newValue.doubleValue();
-            simulation.setHeight1(newHeight);
+            simulation.setHeight(newHeight);
         });
 
-        primaryStage.setResizable(true); // Allow manual window resizing
-
+        primaryStage.setResizable(true);
         primaryStage.show();
     }
 
-    public static class Simulation extends Canvas {
+    public static class SimulationT extends Canvas {
+        private static final int GRID_SIZE = 8;
+
         private int n;
-        private int numOfHeat;
         private int size;
         private Atom[][] grid;
         private GraphicsContext gc;
-        private boolean finished = false;
-        private static AtomicBoolean globalStable = new AtomicBoolean(false);
-        private int index;
-        private static AtomicBoolean[] stableFlags;
-        private ExecutorService executorService;
-        private CyclicBarrier barrier;
         private boolean firstIteration = true;
+        private AtomicBoolean globalStable = new AtomicBoolean(false);
+        private AtomicBoolean[] stableFlags;
 
-        public Simulation(int numOfHeat, double width, double height) {
+        public SimulationT(int numOfHeat, double width, double height) {
             super(width, height);
             this.n = calculateNumOfAtoms(width, height);
             this.size = calculateAtomSize(width, height, this.n);
             this.gc = getGraphicsContext2D();
             this.grid = initializeGrid(n);
-            this.numOfHeat = numOfHeat;
-            this.setWidth(width);
-            this.setHeight(height);
+            this.stableFlags = new AtomicBoolean[NUM_THREADS];
+            this.firstIteration = true;
 
-            // Random points for heat sources
-            if (arrayOfRandoms == null) {
-                arrayOfRandoms = new int[2 * numOfHeat];
-                for (int i = 0; i < numOfHeat * 2; i++) {
-                    int broj = rand.nextInt(n - 1);
-                    arrayOfRandoms[i] = broj;
-                    System.out.println(broj);
-                }
-            }
+            initializeHeatSources(numOfHeat);
 
-            // Initialize stableFlags array
-            stableFlags = new AtomicBoolean[NUM_THREADS];
-            for (int i = 0; i < NUM_THREADS; i++) {
-                stableFlags[i] = new AtomicBoolean(false);
-            }
-
-            executorService = Executors.newFixedThreadPool(NUM_THREADS);
-            barrier = new CyclicBarrier(NUM_THREADS);
+            ExecutorService executorService = Executors.newFixedThreadPool(NUM_THREADS);
+            CyclicBarrier barrier = new CyclicBarrier(NUM_THREADS);
 
             new AnimationTimer() {
                 private long startTime = System.nanoTime();
 
                 @Override
                 public void handle(long now) {
-                    if (finished) {
+                    if (globalStable.get()) {
+                        long endTime = System.nanoTime();
+                        long duration = TimeUnit.NANOSECONDS.toMillis(endTime - startTime);
+                        System.out.println("Simulation completed in " + duration + "ms");
+                        executorService.shutdown();
+                        try {
+                            if (!executorService.awaitTermination(800, TimeUnit.MILLISECONDS)) {
+                                executorService.shutdownNow();
+                            }
+                        } catch (InterruptedException e) {
+                            executorService.shutdownNow();
+                        }
                         return;
                     }
 
-                    // Calculate and update the state of atoms
-                    if (firstIteration) {
+                    if (!firstIteration) {
+                        globalStable.set(true);
                         for (int i = 0; i < NUM_THREADS; i++) {
-                            executorService.execute(new SimulationTask(i));
-                        }
-                        firstIteration = false;
-                    } else {
-                        executorService.execute(new SimulationTask(index));
-                    }
-
-                    // Check if all threads have finished
-                    boolean allThreadsFinished = true;
-                    for (int i = 0; i < NUM_THREADS; i++) {
-                        if (!stableFlags[i].get()) {
-                            allThreadsFinished = false;
-                            break;
-                        }
-                    }
-
-                    if (allThreadsFinished) {
-                        // Check if the system has reached a stable state
-                        boolean isStable = globalStable.get();
-                        if (isStable) {
-                            long elapsedTime = System.nanoTime() - startTime;
-                            System.out.println("Simulation finished in " + elapsedTime + " nanoseconds");
-                            executorService.shutdownNow();
-                            finished = true;
-                        } else {
-                            // Reset stableFlags for the next iteration
-                            for (int i = 0; i < NUM_THREADS; i++) {
-                                stableFlags[i].set(false);
+                            if (!stableFlags[i].get()) {
+                                globalStable.set(false);
+                                break;
                             }
-                            startTime = System.nanoTime();
                         }
+                    }
+
+                    paint();
+                    fixed();
+
+                    if (firstIteration) {
+                        firstIteration = false;
+                    }
+
+                    for (int i = 0; i < NUM_THREADS; i++) {
+                        int finalI = i;
+                        executorService.submit(() -> simulate(barrier, finalI));
                     }
                 }
             }.start();
+        }
+
+        private void simulate(CyclicBarrier barrier, int threadIndex) {
+            int start = threadIndex * (n / NUM_THREADS);
+            int end = (threadIndex + 1) * (n / NUM_THREADS);
+
+            for (int i = start; i < end; i++) {
+                for (int j = 0; j < n; j++) {
+                    calculateNewTemperature(i, j);
+                }
+            }
+
+            try {
+                barrier.await();
+            } catch (InterruptedException | BrokenBarrierException e) {
+                Thread.currentThread().interrupt();
+                e.printStackTrace();
+            }
+        }
+
+        private void paint() {
+            gc.clearRect(0, 0, getWidth(), getHeight());
+
+            for (int i = 0; i < n; i++) {
+                for (int j = 0; j < n; j++) {
+                    gc.setFill(grid[i][j].color);
+                    gc.fillRect(i * size, j * size, size, size);
+                }
+            }
+        }
+
+        private void fixed() {
+            for (int i = 0; i < NUM_THREADS; i++) {
+                stableFlags[i] = new AtomicBoolean(true);
+            }
+        }
+
+        private void calculateNewTemperature(int x, int y) {
+            Atom atom = grid[x][y];
+
+            if (!atom.isHeatSource) {
+                int numNeighbors = 0;
+                double averageTemperature = 0;
+
+                for (int i = -1; i <= 1; i++) {
+                    for (int j = -1; j <= 1; j++) {
+                        int neighborX = x + i;
+                        int neighborY = y + j;
+
+                        if (neighborX >= 0 && neighborX < n && neighborY >= 0 && neighborY < n) {
+                            Atom neighbor = grid[neighborX][neighborY];
+                            averageTemperature += neighbor.temperature;
+                            numNeighbors++;
+                        }
+                    }
+                }
+
+                averageTemperature /= numNeighbors;
+
+                atom.temperature = averageTemperature;
+
+                if (Math.abs(atom.temperature - atom.oldTemperature) >= 0.1) {
+                    stableFlags[x % NUM_THREADS].set(false);
+                }
+
+                atom.oldTemperature = atom.temperature;
+            }
+        }
+
+        private void initializeHeatSources(int numOfHeat) {
+            for (int i = 0; i < numOfHeat; i++) {
+                int x = rand.nextInt(n);
+                int y = rand.nextInt(n);
+                grid[x][y].isHeatSource = true;
+            }
         }
 
         private int calculateNumOfAtoms(double width, double height) {
@@ -177,117 +232,54 @@ public class SimParTest extends Application {
             return size;
         }
 
-
-        private Atom[][] initializeGrid(int numOfAtoms) {
-            // Initialize the grid with atoms
+        private Atom[][] initializeGrid(int n) {
             Atom[][] grid = new Atom[n][n];
-            for (int i = 0; i < numOfAtoms; i++) {
-                int x = i % n;
-                int y = i / n;
-                grid[x][y] = new Atom(0);
+
+            for (int i = 0; i < n; i++) {
+                for (int j = 0; j < n; j++) {
+                    grid[i][j] = new Atom();
+                }
             }
+
             return grid;
         }
 
         public void setWidth1(double width) {
             this.setWidth(width);
-            this.size = calculateAtomSize(width, getHeight(), this.n);
+            this.size = calculateAtomSize(width, getHeight(), n);
         }
 
         public void setHeight1(double height) {
             this.setHeight(height);
-            this.size = calculateAtomSize(getWidth(), height, this.n);
+            this.size = calculateAtomSize(getWidth(), height, n);
         }
 
-        private class SimulationTask implements Runnable {
-            private int threadIndex;
+        private static class Atom {
+            private boolean isHeatSource;
+            private double temperature;
+            private double oldTemperature;
+            private Color color;
 
-            public SimulationTask(int threadIndex) {
-                this.threadIndex = threadIndex;
-            }
-
-            @Override
-            public void run() {
-                try {
-                    // Perform simulation for the assigned portion of the grid
-                    int startIndex = threadIndex * n / NUM_THREADS;
-                    int endIndex = (threadIndex + 1) * n / NUM_THREADS;
-                    simulate(startIndex, endIndex);
-
-                    // Wait for all threads to finish this iteration
-                    barrier.await();
-
-                    // Update the stable flag for this thread
-                    boolean isStable = checkStable(startIndex, endIndex);
-                    stableFlags[threadIndex].set(isStable);
-
-                    // Wait for all threads to update their stable flags
-                    barrier.await();
-
-                    // Update the global stable flag
-                    boolean allThreadsStable = true;
-                    for (int i = 0; i < NUM_THREADS; i++) {
-                        if (!stableFlags[i].get()) {
-                            allThreadsStable = false;
-                            break;
-                        }
-                    }
-                    globalStable.set(allThreadsStable);
-
-                    // Wait for all threads to update the global stable flag
-                    barrier.await();
-                } catch (InterruptedException | BrokenBarrierException e) {
-                    e.printStackTrace();
-                }
-            }
-
-            private void simulate(int startIndex, int endIndex) {
-                for (int x = startIndex; x < endIndex; x++) {
-                    for (int y = 0; y < n; y++) {
-                        // Perform simulation for each atom in the assigned portion
-                        Atom atom = grid[x][y];
-                        atom.updateVelocity();
-                        atom.updatePosition(size, getWidth(), getHeight());
-                    }
-                }
-            }
-            public void simulate(){
-                double newTemperature = 0;
-                for (int i = start; i < end; i++) {
-                    for (int j = 0; j < n; j++) {
-                        Atom currentAtom = grid[i][j];
-                        prevTemperature = currentAtom.getTemperature();
-                        currentAtom.setPrevTemperature(prevTemperature);
-                        newTemperature = calculateNewTemperature(i, j);
-                        if (newTemperature != prevTemperature && newTemperature!=0) {
-                            currentAtom.setTemperature(newTemperature);
-                            if ((Math.abs(newTemperature - prevTemperature)) > 0.25 && (prevTemperature != 100)) {
-                                localStable = false;
-                            }
-                        }
-                    }
-                }
-                if(firstIteration){firstIteration = false;}
-            }
-
-            private boolean checkStable(int startIndex, int endIndex) {
-                for (int x = startIndex; x < endIndex; x++) {
-                    for (int y = 0; y < n; y++) {
-                        Atom atom = grid[x][y];
-                        if (!atom.isStable()) {
-                            return false;
-                        }
-                    }
-                }
-                return true;
+            public Atom() {
+                this.isHeatSource = false;
+                this.temperature = 0;
+                this.oldTemperature = 0;
+                this.color = Color.WHITE;
             }
         }
     }
 
     public static void main(String[] args) {
-        Simulation simulation = new Simulation(100, 800, 600);
-        simulation.start();
+        int width = 800;
+        int height = 600;
+        int numOfHeat = 5;
+        arrayOfRandoms = new int[numOfHeat];
+
+        for (int i = 0; i < numOfHeat; i++) {
+            arrayOfRandoms[i] = rand.nextInt();
+        }
+
+        SimulationParallel simulationParallel = new SimulationParallel(width, height, numOfHeat);
+        simulationParallel.launch(args);
     }
 }
-
-*/
